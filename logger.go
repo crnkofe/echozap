@@ -12,7 +12,7 @@ import (
 type Config struct {
 	Log *zap.Logger
 	// do not log 200-299 requests
-	Skip2XX bool `json:"SKIP2XX"`
+	Skip2XX bool `json:"skip2xx"`
 }
 
 // ZapLogger is a middleware and zap to provide an "access log" like logging for each request.

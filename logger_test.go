@@ -22,11 +22,12 @@ func TestZapLogger(t *testing.T) {
 	}
 
 	obs, logs := observer.New(zap.DebugLevel)
+	config := &Config{
+		Log: zap.New(obs),
+		Skip2XX: false,
+	}
 
-	logger := zap.New(obs)
-
-	err := ZapLogger(logger)(h)(c)
-
+	err := ZapLogger(config)(h)(c)
 	assert.Nil(t, err)
 
 	logFields := logs.AllUntimed()[0].ContextMap()
@@ -38,3 +39,27 @@ func TestZapLogger(t *testing.T) {
 	assert.NotNil(t, logFields["host"])
 	assert.NotNil(t, logFields["size"])
 }
+
+func TestSkip2XX(t *testing.T) {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/something", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	h := func(c echo.Context) error {
+		return c.String(http.StatusOK, "")
+	}
+
+	obs, logs := observer.New(zap.DebugLevel)
+	config := &Config{
+		Log: zap.New(obs),
+		Skip2XX: true,
+	}
+
+	err := ZapLogger(config)(h)(c)
+	assert.Nil(t, err)
+
+	logFields := logs.AllUntimed()
+	assert.Equal(t, 0, len(logFields))
+}
+

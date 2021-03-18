@@ -9,15 +9,21 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+type Config struct {
+	Log *zap.Logger
+	// do not log 200-299 requests
+	Skip2XX bool `json:"SKIP2XX"`
+}
+
 // ZapLogger is a middleware and zap to provide an "access log" like logging for each request.
-func ZapLogger(log *zap.Logger) echo.MiddlewareFunc {
+func ZapLogger(config *Config) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			start := time.Now()
 
 			err := next(c)
 			if err != nil {
-				log = log.With(zap.Error(err))
+				config.Log = config.Log.With(zap.Error(err))
 				c.Error(err)
 			}
 
@@ -43,13 +49,17 @@ func ZapLogger(log *zap.Logger) echo.MiddlewareFunc {
 			n := res.Status
 			switch {
 			case n >= 500:
-				log.Error("Server error", fields...)
+				config.Log.Error("Server error", fields...)
 			case n >= 400:
-				log.Warn("Client error", fields...)
+				config.Log.Warn("Client error", fields...)
 			case n >= 300:
-				log.Info("Redirection", fields...)
+				config.Log.Info("Redirection", fields...)
+			case n >= 200:
+				if !config.Skip2XX {
+					config.Log.Info("Success", fields...)
+				}
 			default:
-				log.Info("Success", fields...)
+				config.Log.Info("Success", fields...)
 			}
 
 			return nil
